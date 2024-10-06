@@ -1,6 +1,7 @@
 package main
 
 import (
+	"grpc-auth/internal/app"
 	"grpc-auth/internal/config"
 	"log/slog"
 	"os"
@@ -20,6 +21,9 @@ func main() {
 	log.Info("starting server", slog.Any("cfg", cfg))
 
 	// TODO: иницализация приложения (app)
+	application := app.New(log, cfg.GRPC.Port, cfg.StoragePath, cfg.TokenTTL)
+
+	application.GRPCServer.MustRun()
 
 	// TODO: запустить gRPC сервер приложения
 }
