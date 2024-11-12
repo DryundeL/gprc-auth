@@ -2,30 +2,47 @@ package auth
 
 import (
 	"context"
-	"errors"
 	ssov1 "github.com/DryundeL/protos/gen/go/sso"
 	"github.com/go-playground/validator/v10"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
+
+type Auth interface {
+	Login(ctx context.Context,
+		email string,
+		password string,
+		appId int,
+	) (token string, err error)
+	RegisterNewUser(ctx context.Context,
+		email string,
+		password string,
+	) (userId int, err error)
+	IsAdmin(ctx context.Context, userId int64) (bool, err error)
+}
 
 type ServerAPI struct {
 	ssov1.UnimplementedAuthServer
 	validator *validator.Validate
+	auth      Auth
 }
 
-func NewServerAPI() *ServerAPI {
+func NewServerAPI(auth Auth) *ServerAPI {
 	return &ServerAPI{
 		validator: validator.New(),
+		auth:      auth,
 	}
 }
 
-func Register(gRPC *grpc.Server) {
-	ssov1.RegisterAuthServer(gRPC, NewServerAPI())
+func Register(gRPC *grpc.Server, auth Auth) {
+	ssov1.RegisterAuthServer(gRPC, NewServerAPI(auth))
 }
 
 type LoginRequest struct {
 	Email    string `validate:"required,email"`
 	Password string `validate:"required,min=8"`
+	AppId    int    `validate:"required"`
 }
 
 func (s *ServerAPI) Login(
@@ -35,14 +52,21 @@ func (s *ServerAPI) Login(
 	loginRequest := LoginRequest{
 		Email:    request.Email,
 		Password: request.Password,
+		AppId:    int(request.AppId),
 	}
 
 	if err := s.validator.Struct(loginRequest); err != nil {
-		return nil, errors.New("invalid request data: " + err.Error())
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+
+	token, err := s.auth.Login(ctx, request.GetEmail(), request.GetPassword(), int(request.GetAppId()))
+	if err != nil {
+		// TODO: ...
+		return nil, status.Error(codes.Internal, "internal server error")
 	}
 
 	return &ssov1.LoginResponse{
-		Token: "some_generated_token",
+		Token: token,
 	}, nil
 }
 
@@ -61,7 +85,7 @@ func (s *ServerAPI) Register(
 	}
 
 	if err := s.validator.Struct(registerRequest); err != nil {
-		return nil, errors.New("invalid registration data: " + err.Error())
+		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
 	return &ssov1.RegisterResponse{
