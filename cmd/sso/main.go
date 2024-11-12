@@ -5,6 +5,8 @@ import (
 	"grpc-auth/internal/config"
 	"log/slog"
 	"os"
+	"os/signal"
+	"syscall"
 )
 
 const (
@@ -20,12 +22,22 @@ func main() {
 
 	log.Info("starting server", slog.Any("cfg", cfg))
 
-	// TODO: иницализация приложения (app)
 	application := app.New(log, cfg.GRPC.Port, cfg.StoragePath, cfg.TokenTTL)
 
-	application.GRPCServer.MustRun()
+	go application.GRPCServer.MustRun()
 
 	// TODO: запустить gRPC сервер приложения
+
+	// Graceful shutdown
+
+	stop := make(chan os.Signal, 1)
+	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
+
+	sing := <-stop
+
+	log.Info("stop application", slog.String("signal", sing.String()))
+
+	application.GRPCServer.Stop()
 }
 
 func setupLogger(env string) *slog.Logger {
