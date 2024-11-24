@@ -18,8 +18,8 @@ type Auth interface {
 	RegisterNewUser(ctx context.Context,
 		email string,
 		password string,
-	) (userId int, err error)
-	IsAdmin(ctx context.Context, userId int64) (bool, err error)
+	) (userId int64, err error)
+	IsAdmin(ctx context.Context, userId int64) (bool bool, err error)
 }
 
 type ServerAPI struct {
@@ -54,7 +54,6 @@ func (s *ServerAPI) Login(
 		Password: request.Password,
 		AppId:    int(request.AppId),
 	}
-
 	if err := s.validator.Struct(loginRequest); err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
@@ -83,20 +82,43 @@ func (s *ServerAPI) Register(
 		Email:    request.Email,
 		Password: request.Password,
 	}
-
 	if err := s.validator.Struct(registerRequest); err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
+	userId, err := s.auth.RegisterNewUser(ctx, request.GetEmail(), request.GetPassword())
+	if err != nil {
+		// TODO: check various errors
+		return nil, status.Error(codes.Internal, "internal server error")
+	}
+
 	return &ssov1.RegisterResponse{
-		UserId: 2,
+		UserId: userId,
 	}, nil
+}
+
+type IsAdminRequest struct {
+	UserId int64 `validate:"required"`
 }
 
 func (s *ServerAPI) IsAdmin(
 	ctx context.Context, request *ssov1.IsAdminRequest,
 ) (*ssov1.IsAdminResponse, error) {
+
+	isAdminRequest := IsAdminRequest{
+		UserId: request.GetUserId(),
+	}
+	if err := s.validator.Struct(isAdminRequest); err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+
+	isAdmin, err := s.auth.IsAdmin(ctx, request.GetUserId())
+	if err != nil {
+		// TODO: ...
+		return nil, status.Error(codes.Internal, "internal server error")
+	}
+
 	return &ssov1.IsAdminResponse{
-		IsAdmin: true,
+		IsAdmin: isAdmin,
 	}, nil
 }
