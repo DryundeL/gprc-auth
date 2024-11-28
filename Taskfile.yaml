@@ -1,0 +1,9 @@
+version: "3"
+
+tasks:
+  migrate:
+    aliases:
+      - migrate
+    desc: "Run migrations"
+    cmds:
+      - go run ./cmd/migrator --migrations-path=./migrations
