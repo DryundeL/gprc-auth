@@ -2,6 +2,8 @@ package app
 
 import (
 	grpcapp "grpc-auth/internal/app/grpc"
+	"grpc-auth/internal/services/auth"
+	"grpc-auth/internal/storage/pgsql"
 	"log/slog"
 	"time"
 )
@@ -13,14 +15,16 @@ type App struct {
 func New(
 	log *slog.Logger,
 	grpcPort int,
-	storagePath string,
+	dbConn string,
 	tokenTTL time.Duration,
 ) *App {
-	// TODO: инициализировать хранилище (storage)
+	storage, err := pgsql.New(dbConn)
+	if err != nil {
+		panic(err)
+	}
 
-	// TODO: init auth service (auth)
-
-	grpcApp := grpcapp.New(log, grpcPort)
+	authService := auth.New(log, storage, storage, storage, tokenTTL)
+	grpcApp := grpcapp.New(log, authService, grpcPort)
 
 	return &App{
 		GRPCServer: grpcApp,

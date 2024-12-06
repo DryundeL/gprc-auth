@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"grpc-auth/internal/app"
 	"grpc-auth/internal/config"
 	"log/slog"
@@ -22,11 +23,13 @@ func main() {
 
 	log.Info("starting server", slog.Any("cfg", cfg))
 
-	application := app.New(log, cfg.GRPC.Port, cfg.StoragePath, cfg.TokenTTL)
+	dsn := fmt.Sprintf(
+		"postgres://%s:%s@%s:%d/%s?sslmode=%s",
+		cfg.DB.Username, cfg.DB.Password, cfg.DB.Host, cfg.DB.Port, cfg.DB.Database, cfg.DB.SSLMode,
+	)
+	application := app.New(log, cfg.GRPC.Port, dsn, cfg.TokenTTL)
 
 	go application.GRPCServer.MustRun()
-
-	// TODO: запустить gRPC сервер приложения
 
 	// Graceful shutdown
 

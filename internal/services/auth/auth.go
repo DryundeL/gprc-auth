@@ -29,12 +29,12 @@ type UserSaver interface {
 }
 
 type UserProvider interface {
-	User(ctx context.Context, email string) (models.User, error)
+	GetUser(ctx context.Context, email string) (models.User, error)
 	IsAdmin(ctx context.Context, userId int64) (bool, error)
 }
 
 type AppProvider interface {
-	App(ctx context.Context, appId int) (models.App, error)
+	GetApp(ctx context.Context, appId int) (models.App, error)
 }
 
 var (
@@ -51,8 +51,8 @@ func New(
 	tokenTTL time.Duration,
 ) *Auth {
 	return &Auth{
-		userSaver:    userSaver,
 		log:          log,
+		userSaver:    userSaver,
 		userProvider: userProvider,
 		appProvider:  appProvider,
 		tokenTTL:     tokenTTL,
@@ -78,7 +78,7 @@ func (a *Auth) Login(
 
 	log.Info("attempt to login user")
 
-	user, err := a.userProvider.User(ctx, email)
+	user, err := a.userProvider.GetUser(ctx, email)
 	if err != nil {
 		if errors.Is(err, storage.ErrUserNotFound) {
 			a.log.Warn("user not found", err)
@@ -97,7 +97,7 @@ func (a *Auth) Login(
 		return "", fmt.Errorf("%s: %w", op, ErrInvalidCredentials)
 	}
 
-	app, err := a.appProvider.App(ctx, appId)
+	app, err := a.appProvider.GetApp(ctx, appId)
 	if err != nil {
 		if errors.Is(err, storage.ErrAppNotFound) {
 			a.log.Warn("app not found", err)

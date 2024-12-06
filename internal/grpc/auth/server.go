@@ -2,11 +2,14 @@ package auth
 
 import (
 	"context"
+	"errors"
 	ssov1 "github.com/DryundeL/protos/gen/go/sso"
 	"github.com/go-playground/validator/v10"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"grpc-auth/internal/services/auth"
+	"grpc-auth/internal/storage"
 )
 
 type Auth interface {
@@ -60,7 +63,10 @@ func (s *ServerAPI) Login(
 
 	token, err := s.auth.Login(ctx, request.GetEmail(), request.GetPassword(), int(request.GetAppId()))
 	if err != nil {
-		// TODO: ...
+		if errors.Is(err, auth.ErrInvalidCredentials) {
+			return nil, status.Error(codes.InvalidArgument, err.Error())
+		}
+
 		return nil, status.Error(codes.Internal, "internal server error")
 	}
 
@@ -88,7 +94,10 @@ func (s *ServerAPI) Register(
 
 	userId, err := s.auth.RegisterNewUser(ctx, request.GetEmail(), request.GetPassword())
 	if err != nil {
-		// TODO: check various errors
+		if errors.Is(err, storage.ErrUserExists) {
+			return nil, status.Error(codes.AlreadyExists, err.Error())
+		}
+
 		return nil, status.Error(codes.Internal, "internal server error")
 	}
 
@@ -114,7 +123,10 @@ func (s *ServerAPI) IsAdmin(
 
 	isAdmin, err := s.auth.IsAdmin(ctx, request.GetUserId())
 	if err != nil {
-		// TODO: ...
+		if errors.Is(err, storage.ErrUserNotFound) {
+			return nil, status.Error(codes.NotFound, err.Error())
+		}
+
 		return nil, status.Error(codes.Internal, "internal server error")
 	}
 
