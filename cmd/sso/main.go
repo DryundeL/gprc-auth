@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"grpc-auth/internal/app"
 	"grpc-auth/internal/config"
+	"grpc-auth/internal/storage/pgsql"
 	"log/slog"
 	"os"
 	"os/signal"
@@ -27,7 +28,12 @@ func main() {
 		"postgres://%s:%s@%s:%d/%s?sslmode=%s",
 		cfg.DB.Username, cfg.DB.Password, cfg.DB.Host, cfg.DB.Port, cfg.DB.Database, cfg.DB.SSLMode,
 	)
-	application := app.New(log, cfg.GRPC.Port, dsn, cfg.TokenTTL)
+	storage, err := pgsql.New(dsn)
+	if err != nil {
+		panic(err)
+	}
+
+	application := app.New(log, cfg.GRPC.Port, storage, cfg.TokenTTL)
 
 	go application.GRPCServer.MustRun()
 
@@ -40,7 +46,7 @@ func main() {
 
 	log.Info("stop application", slog.String("signal", sing.String()))
 
-	application.GRPCServer.Stop()
+	application.GRPCServer.Stop(storage)
 }
 
 func setupLogger(env string) *slog.Logger {

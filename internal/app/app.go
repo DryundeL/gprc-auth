@@ -15,14 +15,9 @@ type App struct {
 func New(
 	log *slog.Logger,
 	grpcPort int,
-	dbConn string,
+	storage *pgsql.Storage,
 	tokenTTL time.Duration,
 ) *App {
-	storage, err := pgsql.New(dbConn)
-	if err != nil {
-		panic(err)
-	}
-
 	authService := auth.New(log, storage, storage, storage, tokenTTL)
 	grpcApp := grpcapp.New(log, authService, grpcPort)
 

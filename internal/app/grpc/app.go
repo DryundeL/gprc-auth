@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"google.golang.org/grpc"
 	authgrpc "grpc-auth/internal/grpc/auth"
+	"grpc-auth/internal/storage/pgsql"
 	"log/slog"
 	"net"
 )
@@ -51,8 +52,14 @@ func (a *App) Run() error {
 	return nil
 }
 
-func (a *App) Stop() {
+func (a *App) Stop(storage *pgsql.Storage) {
 	const op = "gprcapp.Stop"
+
+	err := storage.Close()
+	if err != nil {
+		return
+	}
+
 	a.log.With(slog.String("operation", op), slog.Int("port", a.port))
 
 	a.gRPCServer.GracefulStop()
